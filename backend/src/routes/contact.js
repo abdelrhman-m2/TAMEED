@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { query } from "../db.js";
+import { supabase } from "../db.js";
 import { sendLeadEmail } from "../lib/mailer.js";
 
 const router = Router();
@@ -18,12 +18,19 @@ router.post("/", async (req, res, next) => {
     const data = schema.parse(req.body);
 
     // 1. save to database
-    const r = await query(
-      `INSERT INTO leads (name, phone, business_type, message, source)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, created_at`,
-      [data.name, data.phone, data.business_type, data.message, "contact_form"]
-    );
+    const { data: row, error } = await supabase
+      .from("leads")
+      .insert({
+        name: data.name,
+        phone: data.phone,
+        business_type: data.business_type,
+        message: data.message,
+        source: "contact_form",
+      })
+      .select("id, created_at")
+      .single();
+
+    if (error) throw new Error(error.message);
 
     await sendLeadEmail({
       subject: "New TAMEED lead (contact form)",
@@ -38,8 +45,8 @@ router.post("/", async (req, res, next) => {
 
     res.status(201).json({
       ok: true,
-      id: r.rows[0].id,
-      created_at: r.rows[0].created_at,
+      id: row.id,
+      created_at: row.created_at,
     });
   } catch (e) {
     next(e);
