@@ -10,17 +10,9 @@ import { Label } from "@/components/ui/label";
 import { useI18n } from "@/i18n/I18nProvider";
 import { toast } from "sonner";
 import { Mail, Phone, MapPin } from "lucide-react";
-
-// ── Backend API URL ────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+// ── Supabase Integration ────────────────────────────────────────────
+import { supabase } from "@/lib/supabase";
 // ──────────────────────────────────────────────────────────────────
-
-const schema = z.object({
-  name:          z.string().trim().min(2).max(100),
-  phone:         z.string().trim().min(6).max(20),
-  business_type: z.string().trim().min(2).max(80),
-  message:       z.string().trim().min(5).max(1000),
-});
 
 const Contact = () => {
   const { t } = useI18n();
@@ -36,6 +28,14 @@ const Contact = () => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const schema = z.object({
+      name:          z.string().trim().min(2, t("contact.valName")),
+      phone:         z.string().trim().min(6, t("contact.valPhone")),
+      business_type: z.string().trim().min(2, t("contact.valBusiness")),
+      message:       z.string().trim().min(5, t("contact.valMessage")),
+    });
+
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -45,18 +45,22 @@ const Contact = () => {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${API_URL}/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
+      // Insert form data directly into Supabase clients table
+      const { error } = await supabase
+        .from("clients")
+        .insert({
+          name: parsed.data.name,
+          phone: parsed.data.phone,
+          business_type: parsed.data.business_type,
+          message: parsed.data.message,
+        });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? `Server error ${res.status}`);
+      if (error) {
+        throw new Error(error.message);
       }
 
       toast.success(t("contact.success"));
+      // Reset the form after a successful insert
       setForm({ name: "", phone: "", business_type: "", message: "" });
     } catch (err) {
       console.error("Contact submit error:", err);
@@ -80,7 +84,7 @@ const Contact = () => {
             <InfoCard icon={Phone} title="Phone / WhatsApp" value="+966 50 736 3550" />
             <InfoCard icon={MapPin} title="HQ" value="Cairo, Egypt" />
           </aside>
-
+          
           <form onSubmit={submit} className="rounded-3xl border border-border bg-card-grad p-7 shadow-elev-sm md:p-10">
             <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("contact.sub")}
@@ -99,7 +103,7 @@ const Contact = () => {
                 <Textarea id="message" rows={5} value={form.message} onChange={update("message")} required maxLength={1000} placeholder={t("contact.message")} />
               </Field>
             </div>
-            <Button type="submit" variant="hero" size="lg" className="mt-7 w-full sm:w-auto">
+            <Button type="submit" variant="hero" size="lg" className="mt-7 w-full sm:w-auto" disabled={submitting}>
               {submitting ? `${t("contact.submit")}...` : `${t("contact.submit")} →`}
             </Button>
           </form>

@@ -26,7 +26,10 @@ export type Dict = {
   about: { title: string; intro: string; vision: { t: string; d: string }; mission: { t: string; d: string }; values: { t: string; d: string } };
   industries: { title: string; items: { t: string; d: string }[] };
   clients: { title: string; sub: string };
-  contact: { title: string; sub: string; name: string; phone: string; business: string; message: string; submit: string; success: string; error: string };
+  contact: {
+    title: string; sub: string; name: string; phone: string; business: string; message: string; submit: string; success: string; error: string;
+    valName: string; valPhone: string; valBusiness: string; valMessage: string;
+  };
   pricing: { title: string; sub: string; users: string; business: string; modules: string; est: string; note: string; request: string };
   sim: {
     title: string; sub: string;
@@ -46,7 +49,8 @@ export type Dict = {
       points: string[];
     }[];
   };
-  footer: { rights: string; desc: string; company: string; product: string; contact: string };
+  footer: { rights: string; desc: string; company: string; product: string; contact: string; privacy: string };
+  privacy: { title: string; subtitle: string; intro: string; sections: { t: string; d: string }[]; contact: string; updated: string };
   common: { learnMore: string; getStarted: string; explore: string };
 };
 
@@ -232,6 +236,10 @@ export const ar: Dict = {
     sub: "أرسل طلبك وسيتواصل معك أحد مستشارينا خلال ساعات.",
     name: "الاسم", phone: "رقم الجوال", business: "نوع النشاط", message: "رسالتك",
     submit: "إرسال", success: "تم استلام طلبك بنجاح", error: "حدث خطأ، حاول مرة أخرى",
+    valName: "يجب أن يكون الاسم حرفين على الأقل",
+    valPhone: "يجب أن يكون رقم الجوال 6 أرقام على الأقل",
+    valBusiness: "يجب أن يكون نوع النشاط حرفين على الأقل",
+    valMessage: "يجب أن تكون الرسالة 5 أحرف على الأقل",
   },
   pricing: {
     title: "حاسبة الأسعار",
@@ -341,7 +349,22 @@ export const ar: Dict = {
   footer: {
     rights: "جميع الحقوق محفوظة",
     desc: "حلول ERP مؤسسية لإدارة أعمالك بكفاءة عالية.",
-    company: "الشركة", product: "المنتج", contact: "تواصل",
+    company: "الشركة", product: "المنتج", contact: "تواصل", privacy: "سياسة الخصوصية",
+  },
+  privacy: {
+    title: "سياسة الخصوصية",
+    subtitle: "نحن ملتزمون بحماية بياناتك الشخصية وخصوصيتك.",
+    intro: "تصف هذه السياسة كيفية جمع واستخدام وحماية المعلومات التي تقدمها لنا عند استخدام موقعنا وخدماتنا. باستخدامك لموقعنا فإنك توافق على الشروط الواردة في هذه السياسة.",
+    sections: [
+      { t: "جمع البيانات", d: "نقوم بجمع المعلومات التي تقدمها طواعية مثل الاسم، رقم الجوال، ونوع النشاط التجاري عند تعبئة نموذج التواصل أو طلب عرض سعر. لا نجمع أي بيانات حساسة دون إذنك الصريح." },
+      { t: "استخدام البيانات", d: "نستخدم بياناتك فقط للتواصل معك بخصوص استفساراتك، تقديم عروض الأسعار، وتحسين خدماتنا. لن نستخدم بياناتك لأي غرض آخر دون موافقتك." },
+      { t: "حماية البيانات", d: "نطبق إجراءات أمنية متقدمة لحماية معلوماتك من الوصول غير المصرح به أو التعديل أو الإفشاء أو الإتلاف. نستخدم تشفير SSL ونتبع أفضل الممارسات الأمنية." },
+      { t: "ملفات تعريف الارتباط", d: "قد نستخدم ملفات تعريف الارتباط (Cookies) لتحسين تجربتك على الموقع وتحليل أنماط الاستخدام. يمكنك تعطيل ملفات تعريف الارتباط من إعدادات متصفحك." },
+      { t: "مشاركة البيانات مع أطراف ثالثة", d: "لا نبيع أو نشارك بياناتك الشخصية مع أطراف ثالثة لأغراض تسويقية. قد نشارك البيانات مع مزودي خدمات موثوقين لتشغيل خدماتنا فقط." },
+      { t: "حقوقك", d: "يحق لك طلب الوصول إلى بياناتك الشخصية أو تعديلها أو حذفها في أي وقت. يمكنك أيضاً الاعتراض على معالجة بياناتك أو طلب نقلها." },
+    ],
+    contact: "إذا كان لديك أي أسئلة حول سياسة الخصوصية، يمكنك التواصل معنا عبر:",
+    updated: "آخر تحديث: أغسطس 2026",
   },
   common: { learnMore: "اعرف المزيد", getStarted: "ابدأ الآن", explore: "استكشف" },
 };
@@ -518,6 +541,10 @@ export const en: Dict = {
     title: "Contact us", sub: "Send your request and a consultant will reach out shortly.",
     name: "Full name", phone: "Phone", business: "Business type", message: "Your message",
     submit: "Send", success: "Your request was received successfully", error: "Something went wrong, try again",
+    valName: "Name must be at least 2 characters",
+    valPhone: "Phone number must be at least 6 characters",
+    valBusiness: "Business type must be at least 2 characters",
+    valMessage: "Message must be at least 5 characters",
   },
   pricing: {
     title: "Pricing calculator", sub: "Get an instant estimate based on your business size.",
@@ -619,7 +646,22 @@ export const en: Dict = {
       },
     ],
   },
-  footer: { rights: "All rights reserved", desc: "Enterprise ERP solutions to run your business efficiently.", company: "Company", product: "Product", contact: "Contact" },
+  footer: { rights: "All rights reserved", desc: "Enterprise ERP solutions to run your business efficiently.", company: "Company", product: "Product", contact: "Contact", privacy: "Privacy Policy" },
+  privacy: {
+    title: "Privacy Policy",
+    subtitle: "We are committed to protecting your personal data and privacy.",
+    intro: "This policy describes how we collect, use, and protect the information you provide when using our website and services. By using our site, you agree to the terms outlined in this policy.",
+    sections: [
+      { t: "Data Collection", d: "We collect information you voluntarily provide such as your name, phone number, and business type when filling out contact forms or requesting quotes. We do not collect sensitive data without your explicit consent." },
+      { t: "Data Usage", d: "We use your data solely to respond to inquiries, provide quotes, and improve our services. We will not use your data for any other purpose without your consent." },
+      { t: "Data Protection", d: "We implement advanced security measures to protect your information from unauthorized access, modification, disclosure, or destruction. We use SSL encryption and follow industry best practices." },
+      { t: "Cookies", d: "We may use cookies to enhance your experience and analyze usage patterns. You can disable cookies through your browser settings." },
+      { t: "Third-Party Sharing", d: "We do not sell or share your personal data with third parties for marketing purposes. We may share data with trusted service providers solely to operate our services." },
+      { t: "Your Rights", d: "You have the right to access, modify, or delete your personal data at any time. You can also object to data processing or request data portability." },
+    ],
+    contact: "If you have any questions about our privacy policy, you can contact us at:",
+    updated: "Last updated: August 2026",
+  },
   common: { learnMore: "Learn more", getStarted: "Get started", explore: "Explore" },
 };
 

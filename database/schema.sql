@@ -42,3 +42,13 @@ CREATE TABLE IF NOT EXISTS users (
   role          VARCHAR(30) NOT NULL DEFAULT 'admin',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Clients table for contact form submissions
+CREATE TABLE IF NOT EXISTS clients (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  business_type TEXT NOT NULL,
+  message       TEXT NOT NULL
+);
+

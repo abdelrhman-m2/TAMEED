@@ -26,13 +26,17 @@ export const Footer = () => {
             <li><Link to="/about" className="hover:text-primary">{t("nav.about")}</Link></li>
             <li><Link to="/clients" className="hover:text-primary">{t("nav.clients")}</Link></li>
             <li><Link to="/contact" className="hover:text-primary">{t("nav.contact")}</Link></li>
+            <li><Link to="/privacy" className="hover:text-primary">{t("footer.privacy")}</Link></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border">
         <div className="container-wide flex flex-col items-center justify-between gap-2 py-5 text-xs text-muted-foreground sm:flex-row">
           <span>© {year} TAMEED. {t("footer.rights")}</span>
-          <span>abdel.22004@gmail.com · +201098747503</span>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-primary">{t("footer.privacy")}</Link>
+            <span>abdel.22004@gmail.com · +201098747503</span>
+          </div>
         </div>
       </div>
     </footer>
