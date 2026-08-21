@@ -80,9 +80,9 @@ const Contact = () => {
       <section className="bg-background py-16 md:py-20">
         <div className="container-wide grid gap-10 lg:grid-cols-[1fr,1.4fr]">
           <aside className="space-y-4">
-            <InfoCard icon={Mail} title="Email" value="mekkawy@tameed.com" />
+            <InfoCard icon={Mail} title="Email" value="mohmekkawy@gmail.com" />
             <InfoCard icon={Phone} title="Phone / WhatsApp" value="+966 50 736 3550" />
-            <InfoCard icon={MapPin} title="HQ" value="Cairo, Egypt" />
+            <InfoCard icon={MapPin} title="HQ" value="Jeddah, Saudi Arabia" />
           </aside>
           
           <form onSubmit={submit} className="rounded-3xl border border-border bg-card-grad p-7 shadow-elev-sm md:p-10">
@@ -147,7 +147,12 @@ const InfoCard = ({
     </span>
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-      <p className="mt-1 text-sm font-semibold text-primary">{value}</p>
+      <p
+        dir={title === "Phone / WhatsApp" ? "ltr" : undefined}
+        className="mt-1 text-sm font-semibold text-primary"
+      >
+        {value}
+      </p>
     </div>
   </div>
 );

@@ -3,7 +3,7 @@ import { Bot, X, Send, Loader2 } from "lucide-react";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // .env → VITE_GEMINI_API_KEY=your_key_here
-const GEMINI_API_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || "AIzaSyD-MNPdtg5wXAmXgnVtNw3UJcx93Cx7xe0";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
