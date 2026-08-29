@@ -1,81 +1,140 @@
 import { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Loader2 } from "lucide-react";
+import { api, AiHistoryItem } from "../lib/api";
+import { supabase } from "../lib/supabase";
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// .env → VITE_GEMINI_API_KEY=your_key_here
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
-const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const SYSTEM_PROMPT = `
+أنت المساعد الذكي الرسمي لشركة TAMEED.
 
-const SYSTEM_PROMPT = `أنت مساعد ذكي لشركة TAMEED، متخصصة في أنظمة ERP للشركات والمؤسسات.
-مهمتك:
-- الإجابة على استفسارات العملاء حول أنظمة TAMEED (المخازن، الرواتب، المبيعات، المشتريات، الموارد البشرية)
-- مساعدة العملاء في اختيار النظام المناسب لنشاطهم
-- الرد بشكل احترافي ومختصر باللغة العربية
-- إذا طلب العميل التواصل مع المبيعات، اطلب منه بياناته`;
+TAMEED شركة متخصصة في أنظمة ERP للشركات والمؤسسات.
+
+يمكنك مساعدة العملاء في:
+- إدارة المخازن والمستودعات
+- المبيعات
+- المشتريات
+- الموارد البشرية
+- الرواتب
+- إدارة العملاء
+- التقارير
+- أنظمة ERP بشكل عام
+
+القواعد:
+- أجب باللغة العربية إذا تحدث العميل بالعربية.
+- أجب باللغة الإنجليزية إذا تحدث العميل بالإنجليزية.
+- كن احترافيًا وواضحًا.
+- اجعل الرد مختصرًا ومفيدًا.
+- لا تخترع أسعارًا أو مميزات غير معروفة.
+- إذا سأل العميل عن شيء خارج خدمات TAMEED، أخبره بأدب أنك متخصص في خدمات TAMEED.
+- إذا أبدى العميل اهتمامًا بالتواصل مع الشركة، اطلب منه الاسم ورقم الجوال ونوع النشاط والاحتياج.
+`;
+
+async function callDirectGemini(
+  message: string,
+  history: { role: string; content: string }[]
+): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
+
+  const contents = history
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+  contents.push({ role: "user", parts: [{ text: message }] });
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { temperature: 0.3, maxOutputTokens: 300 },
+      }),
+    }
+  );
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Gemini direct error");
+  }
+
+  return (
+    data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+    "تقدر تسألني عن أي نظام من أنظمة TAMEED."
+  );
+}
 
 // ─── Gemini API Call ──────────────────────────────────────────────────────────
-async function callGemini(
+async function callAI(
   userMessage: string,
   history: { role: string; content: string }[]
 ): Promise<string> {
-  const contents = history.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }],
-  }));
-  contents.push({
-    role: "user",
-    parts: [{ text: userMessage }],
-  });
+  try {
+    const formattedHistory: AiHistoryItem[] = history
+      .filter((h) => h.role === "user" || h.role === "assistant")
+      .map((h) => ({
+        role: h.role as "user" | "assistant",
+        content: h.content,
+      }));
 
-  const res = await fetch(GEMINI_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents,
-      system_instruction: {
-        parts: [{ text: SYSTEM_PROMPT }],
-      },
-      generationConfig: {
-        maxOutputTokens: 1000,
-        temperature: 0.7,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini API error: ${res.status}`);
+    const data = await api.aiChat(userMessage, formattedHistory);
+    if (data?.reply) return data.reply;
+  } catch (backendErr) {
+    console.warn("Backend unavailable, using direct Gemini API fallback...", backendErr);
   }
 
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Empty response from Gemini API");
-  }
-  return text;
+  return callDirectGemini(userMessage, history);
 }
 
-// ─── Lead Email via mailto fallback ──────────────────────────────────────────
-// (No backend needed — opens mail client or you can replace with EmailJS/Resend)
-function submitLead(payload: {
+// ─── Lead Email / Supabase Integration ──────────────────────────────────────────
+async function submitLead(payload: {
   name: string;
   phone: string;
   business_type: string;
   message: string;
   notes: string;
 }) {
-  // Option A: log to console (replace with EmailJS / Resend / Formspree as needed)
-  console.log("📩 New Lead:", payload);
+  // 1. Try inserting into Supabase 'clients' table (same as Contact.tsx)
+  const { error: clientsError } = await supabase
+    .from("clients")
+    .insert({
+      name: payload.name,
+      phone: payload.phone,
+      business_type: payload.business_type,
+      message: payload.message
+        ? `${payload.message}\n\n[Chatbot Notes]: ${payload.notes}`
+        : payload.notes,
+    });
 
-  // Option B (uncomment): send via Formspree
-  // return fetch("https://formspree.io/f/YOUR_FORM_ID", {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload),
-  // });
+  if (!clientsError) {
+    return;
+  }
+
+  // 2. If 'clients' table fails, try 'leads' table
+  const { error: leadsError } = await supabase
+    .from("leads")
+    .insert({
+      name: payload.name,
+      phone: payload.phone,
+      business_type: payload.business_type,
+      message: payload.message,
+      notes: payload.notes,
+    });
+
+  if (!leadsError) {
+    return;
+  }
+
+  // 3. Optional fallback to backend API if available
+  try {
+    await api.aiLead(payload);
+  } catch {
+    throw clientsError || leadsError;
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -151,10 +210,10 @@ export const AIChatbot = () => {
     };
 
     try {
-      submitLead(payload);
+      await submitLead(payload);
       addMessage(
         "assistant",
-        "تم تسجيل بياناتك بنجاح، وسيتم التواصل معك قريبًا على البريد mekkawy@tameed.com."
+        "تم إرسال طلبك بنجاح وسيتواصل معك أحد مستشارينا خلال ساعات."
       );
     } catch {
       addMessage(
@@ -187,7 +246,7 @@ export const AIChatbot = () => {
     // Normal AI chat via Gemini
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
-      const reply = await callGemini(text, history);
+      const reply = await callAI(text, history);
       addMessage("assistant", reply || "تقدر تسألني عن أي نظام من أنظمة TAMEED.");
     } catch (err) {
       console.error("Gemini error:", err);
@@ -247,11 +306,10 @@ export const AIChatbot = () => {
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
-                    msg.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white border text-gray-800"
-                  }`}
+                  className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${msg.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white border text-gray-800"
+                    }`}
                 >
                   {msg.content}
                 </div>

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { query } from "../db.js";
+import { supabase } from "../db.js";
 
 const router = Router();
 
@@ -13,13 +13,29 @@ const schema = z.object({
 router.post("/", async (req, res, next) => {
   try {
     const data = schema.parse(req.body);
-    const r = await query(
-      `INSERT INTO demo_requests (name, phone, company)
-       VALUES ($1,$2,$3) RETURNING id, created_at`,
-      [data.name, data.phone, data.company]
-    );
-    res.status(201).json({ ok: true, id: r.rows[0].id });
-  } catch (e) { next(e); }
+
+    const { data: result, error } = await supabase
+      .from("demo_requests")
+      .insert({
+        name: data.name,
+        phone: data.phone,
+        company: data.company,
+      })
+      .select("id, created_at")
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.status(201).json({
+      ok: true,
+      id: result.id,
+      created_at: result.created_at,
+    });
+  } catch (e) {
+    next(e);
+  }
 });
 
 export default router;

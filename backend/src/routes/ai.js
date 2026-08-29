@@ -1,59 +1,125 @@
 import express from "express";
 import { z } from "zod";
-import { query } from "../db.js";
+import { supabase } from "../db.js";
 import { sendLeadEmail } from "../lib/mailer.js";
 
 const router = express.Router();
 
 const SYSTEM_PROMPT = `
 You are the official TAMEED AI Sales Assistant.
+
 ONLY answer about TAMEED ERP systems and services.
-Reply in same language as the user.
-Keep answers concise (max 3 short sentences).
-When the user seems interested, ask for: name, phone, business type, and need.
+
+TAMEED provides ERP solutions including:
+- Inventory management
+- Sales management
+- Purchasing management
+- Human resources
+- Payroll
+- Business management
+
+Reply in the same language as the user.
+
+Keep answers concise and professional.
+
+If the user is interested in purchasing, demo, pricing, or contacting sales,
+ask for:
+- Name
+- Phone
+- Business type
+- Business need
 `;
 
 router.post("/", async (req, res) => {
   try {
-    const { message, history } = req.body;
-    if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({ reply: "GROQ_API_KEY is not configured on server." });
+    const { message, history = [] } = req.body;
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({
+        reply: "من فضلك اكتب سؤالك أولاً.",
+      });
     }
-    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
-    const msgs = (history || []).map((m) => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: m.content,
-    }));
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.3,
-        max_tokens: 250,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...msgs,
-          { role: "user", content: message },
-        ],
-      }),
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        reply: "GEMINI_API_KEY is not configured on server.",
+      });
+    }
+
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+
+    const contents = [];
+
+    // Previous conversation
+    for (const m of history) {
+      contents.push({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      });
+    }
+
+    // Current message
+    contents.push({
+      role: "user",
+      parts: [{ text: message }],
     });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Groq API error: ${response.status} ${errText}`);
-    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [
+              {
+                text: SYSTEM_PROMPT,
+              },
+            ],
+          },
+
+          contents,
+
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 500,
+          },
+        }),
+      }
+    );
+
     const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content || "تقدر تسألني عن أي نظام من أنظمة TAMEED.";
+
+    if (!response.ok) {
+      console.error("Gemini API Error:", data);
+
+      return res.status(response.status).json({
+        reply:
+          data?.error?.message ||
+          "حدث خطأ أثناء الاتصال بخدمة الذكاء الاصطناعي.",
+      });
+    }
+
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "تقدر تسألني عن أي نظام من أنظمة TAMEED.";
 
     res.json({ reply });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ reply: "حدث خطأ في الرد من الذكاء الاصطناعي" });
+    console.error("AI Error:", err);
+
+    res.status(500).json({
+      reply: "حدث خطأ في الرد من الذكاء الاصطناعي.",
+    });
   }
 });
+
+
+// ============================================================
+// CHATBOT LEAD
+// ============================================================
 
 const leadSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -66,26 +132,66 @@ const leadSchema = z.object({
 router.post("/lead", async (req, res, next) => {
   try {
     const data = leadSchema.parse(req.body);
-    const r = await query(
-      `INSERT INTO leads (name, phone, business_type, message, source, notes)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, created_at`,
-      [data.name, data.phone, data.business_type, data.message, "chatbot", data.notes || null]
-    );
 
-    await sendLeadEmail({
-      subject: "New TAMEED lead (chatbot)",
-      html: `
-        <h3>New Chatbot Lead</h3>
-        <p><strong>Name:</strong> ${data.name}</p>
-        <p><strong>Phone:</strong> ${data.phone}</p>
-        <p><strong>Business:</strong> ${data.business_type}</p>
-        <p><strong>Need:</strong><br/>${data.message}</p>
-        <p><strong>Notes:</strong><br/>${data.notes || "-"}</p>
-      `,
+    const { data: lead, error } = await supabase
+      .from("leads")
+      .insert({
+        name: data.name,
+        phone: data.phone,
+        business_type: data.business_type,
+        message: data.message,
+        source: "chatbot",
+        notes: data.notes || null,
+      })
+      .select("id, created_at")
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    try {
+      await sendLeadEmail({
+        subject: "New TAMEED lead (chatbot)",
+        html: `
+          <h3>New Chatbot Lead</h3>
+
+          <p>
+            <strong>Name:</strong>
+            ${data.name}
+          </p>
+
+          <p>
+            <strong>Phone:</strong>
+            ${data.phone}
+          </p>
+
+          <p>
+            <strong>Business:</strong>
+            ${data.business_type}
+          </p>
+
+          <p>
+            <strong>Need:</strong><br/>
+            ${data.message}
+          </p>
+
+          <p>
+            <strong>Notes:</strong><br/>
+            ${data.notes || "-"}
+          </p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Lead email error:", emailError);
+      // Don't fail the lead if email fails
+    }
+
+    res.status(201).json({
+      ok: true,
+      id: lead.id,
+      created_at: lead.created_at,
     });
-
-    res.status(201).json({ ok: true, id: r.rows[0].id, created_at: r.rows[0].created_at });
   } catch (e) {
     next(e);
   }
