@@ -27,6 +27,46 @@ TAMEED شركة متخصصة في أنظمة ERP للشركات والمؤسسا
 - إذا سأل العميل عن شيء خارج خدمات TAMEED، أخبره بأدب أنك متخصص في خدمات TAMEED.
 - إذا أبدى العميل اهتمامًا بالتواصل مع الشركة، اطلب منه الاسم ورقم الجوال ونوع النشاط والاحتياج.
 `;
+async function callDirectGemini(
+  message: string,
+  history: { role: string; content: string }[]
+): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
+
+  const contents = history
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+  contents.push({ role: "user", parts: [{ text: message }] });
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { temperature: 0.3, maxOutputTokens: 350 },
+      }),
+    }
+  );
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Gemini direct error");
+  }
+
+  return (
+    data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+    "تقدر تسألني عن أي نظام من أنظمة TAMEED."
+  );
+}
+
 // ─── Gemini API Call ──────────────────────────────────────────────────────────
 
 async function callAI(
@@ -40,13 +80,31 @@ async function callAI(
       content: h.content,
     }));
 
-  const data = await api.aiChat(userMessage, formattedHistory);
-
-  if (data?.reply) {
-    return data.reply;
+  // 1. Try Express backend API (if running or VITE_API_URL set)
+  try {
+    const data = await api.aiChat(userMessage, formattedHistory);
+    if (data?.reply) return data.reply;
+  } catch (err) {
+    console.warn("Backend API unavailable, trying Vercel function...", err);
   }
 
-  throw new Error("No reply received from AI backend");
+  // 2. Try Vercel Serverless Function (/api/ai)
+  try {
+    const res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: userMessage, history: formattedHistory }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.reply) return data.reply;
+    }
+  } catch (vercelErr) {
+    console.warn("Vercel /api/ai function unavailable, trying direct Gemini fallback...", vercelErr);
+  }
+
+  // 3. Fallback to direct Gemini API call
+  return callDirectGemini(userMessage, history);
 }
 
 // ─── Lead Email / Supabase Integration ──────────────────────────────────────────
