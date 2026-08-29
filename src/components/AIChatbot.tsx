@@ -31,7 +31,8 @@ async function callDirectGemini(
   message: string,
   history: { role: string; content: string }[]
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const rawKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+  const apiKey = rawKey.replace(/['"]/g, "").trim();
   if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
   const contents = history

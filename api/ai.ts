@@ -1,24 +1,42 @@
 export default async function handler(req: any, res: any) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const { message, history = [] } = req.body || {};
+    let body = req.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        // use raw body if parse fails
+      }
+    }
+
+    const { message, history = [] } = body || {};
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({ reply: "من فضلك اكتب سؤالك أولاً." });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+    const apiKey = rawKey.replace(/['"]/g, "").trim();
 
     if (!apiKey) {
       return res.status(500).json({
-        reply: "GEMINI_API_KEY is not configured on Vercel environment variables.",
+        reply: "GEMINI_API_KEY is missing on Vercel environment variables.",
       });
     }
 
-    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const model = (process.env.GEMINI_MODEL || "gemini-3.6-flash").replace(/['"]/g, "").trim();
 
     const contents = [];
     for (const m of history) {
@@ -58,6 +76,7 @@ export default async function handler(req: any, res: any) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("Vercel AI Gemini Error:", data);
       return res.status(response.status).json({
         reply: data?.error?.message || "حدث خطأ أثناء الاتصال بخدمة الذكاء الاصطناعي.",
       });
@@ -68,9 +87,10 @@ export default async function handler(req: any, res: any) {
       "تقدر تسألني عن أي نظام من أنظمة TAMEED.";
 
     return res.status(200).json({ reply });
-  } catch (err) {
+  } catch (err: any) {
+    console.error("Vercel AI Function Exception:", err);
     return res.status(500).json({
-      reply: "حدث خطأ في الرد من الذكاء الاصطناعي.",
+      reply: err?.message || "حدث خطأ في الرد من الذكاء الاصطناعي.",
     });
   }
 }
