@@ -81,27 +81,25 @@ async function callAI(
       content: h.content,
     }));
 
-  // 1. Try Express backend API (if running or VITE_API_URL set)
-  try {
-    const data = await api.aiChat(userMessage, formattedHistory);
-    if (data?.reply) return data.reply;
-  } catch (err) {
-    console.warn("Backend API unavailable, trying Vercel function...", err);
-  }
-
-  // 2. Try Vercel Serverless Function (/api/ai)
+  // 1. Try Vercel Serverless Function (/api/ai)
   try {
     const res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: userMessage, history: formattedHistory }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.reply) return data.reply;
-    }
+    const data = await res.json();
+    if (data?.reply) return data.reply;
   } catch (vercelErr) {
-    console.warn("Vercel /api/ai function unavailable, trying direct Gemini fallback...", vercelErr);
+    console.warn("Vercel /api/ai function failed, trying Express backend / direct Gemini...", vercelErr);
+  }
+
+  // 2. Try Express backend API
+  try {
+    const data = await api.aiChat(userMessage, formattedHistory);
+    if (data?.reply) return data.reply;
+  } catch (err) {
+    console.warn("Backend API unavailable, trying direct Gemini...", err);
   }
 
   // 3. Fallback to direct Gemini API call
