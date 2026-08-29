@@ -1,3 +1,4 @@
+```js
 import { Router } from "express";
 import { z } from "zod";
 import { supabase } from "../db.js";
@@ -45,3 +46,5 @@ router.post("/", async (req, res, next) => {
 });
 
 export default router;
+```
+
