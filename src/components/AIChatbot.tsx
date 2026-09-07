@@ -3,30 +3,51 @@ import { Bot, X, Send, Loader2 } from "lucide-react";
 import { api, AiHistoryItem } from "../lib/api";
 import { supabase } from "../lib/supabase";
 
-const SYSTEM_PROMPT = `
-أنت المساعد الذكي الرسمي لشركة TAMEED.
+import { SYSTEM_PROMPT } from "../constants/knowledgeBase";
 
-TAMEED شركة متخصصة في أنظمة ERP للشركات والمؤسسات.
+function formatGeminiContents(
+  message: string,
+  history: { role: string; content: string }[]
+) {
+  const rawList = history
+    .filter(
+      (m) =>
+        (m.role === "user" || m.role === "assistant") &&
+        m.content &&
+        m.content.trim()
+    )
+    .map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
-يمكنك مساعدة العملاء في:
-- إدارة المخازن والمستودعات
-- المبيعات
-- المشتريات
-- الموارد البشرية
-- الرواتب
-- إدارة العملاء
-- التقارير
-- أنظمة ERP بشكل عام
+  while (rawList.length > 0 && rawList[0].role !== "user") {
+    rawList.shift();
+  }
 
-القواعد:
-- أجب باللغة العربية إذا تحدث العميل بالعربية.
-- أجب باللغة الإنجليزية إذا تحدث العميل بالإنجليزية.
-- كن احترافيًا وواضحًا.
-- اجعل الرد مختصرًا ومفيدًا.
-- لا تخترع أسعارًا أو مميزات غير معروفة.
-- إذا سأل العميل عن شيء خارج خدمات TAMEED، أخبره بأدب أنك متخصص في خدمات TAMEED.
-- إذا أبدى العميل اهتمامًا بالتواصل مع الشركة، اطلب منه الاسم ورقم الجوال ونوع النشاط والاحتياج.
-`;
+  const validHistory: { role: string; parts: { text: string }[] }[] = [];
+  for (const item of rawList) {
+    const last = validHistory[validHistory.length - 1];
+    if (!last || last.role !== item.role) {
+      validHistory.push(item);
+    }
+  }
+
+  if (
+    validHistory.length > 0 &&
+    validHistory[validHistory.length - 1].role === "user"
+  ) {
+    validHistory.pop();
+  }
+
+  validHistory.push({
+    role: "user",
+    parts: [{ text: message }],
+  });
+
+  return validHistory;
+}
+
 async function callDirectGemini(
   message: string,
   history: { role: string; content: string }[]
@@ -35,14 +56,7 @@ async function callDirectGemini(
   const apiKey = rawKey.replace(/['"]/g, "").trim();
   if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
 
-  const contents = history
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-
-  contents.push({ role: "user", parts: [{ text: message }] });
+  const contents = formatGeminiContents(message, history);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
@@ -52,7 +66,7 @@ async function callDirectGemini(
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { temperature: 0.3, maxOutputTokens: 350 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 500 },
       }),
     }
   );
@@ -407,29 +421,34 @@ export const AIChatbot = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() =>
-                    setInput(
-                      "ايه أفضل نظام لإدارة المخازن؟"
-                    )
+                    setInput("ما هي المكونات الأساسية لنظام المحاسبة المالية والقوائم الرئيسية؟")
                   }
-                  className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700"
+                  className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
                 >
-                  سؤال عن المخازن
+                  المحاسبة المالية
                 </button>
 
                 <button
                   onClick={() =>
-                    setInput(
-                      "محتاج نظام شؤون الموظفين والرواتب"
-                    )
+                    setInput("كيف يتم تسجيل وحساب إهلاك الأصول الثابتة؟")
                   }
-                  className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700"
+                  className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
                 >
-                  سؤال عن الموارد البشرية
+                  إدارة الأصول
+                </button>
+
+                <button
+                  onClick={() =>
+                    setInput("ما هي العلاقة التكاملية بين نظام نقاط البيع (POS) وإدارة المخزون؟")
+                  }
+                  className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  علاقة POS بالمخزون
                 </button>
 
                 <button
                   onClick={startLeadCapture}
-                  className="rounded-full border bg-blue-600 px-3 py-1 text-xs text-white"
+                  className="rounded-full border bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 transition-colors"
                 >
                   اترك بياناتي
                 </button>

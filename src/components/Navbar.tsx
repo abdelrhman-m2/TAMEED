@@ -18,7 +18,6 @@ const links = [
   { to: "/systems", key: "nav.systems" },
   { to: "/industries", key: "nav.industries" },
   { to: "/clients", key: "nav.clients" },
-  { to: "/simulation", key: "nav.simulation" },
   { to: "/contact", key: "nav.contact" },
 ];
 

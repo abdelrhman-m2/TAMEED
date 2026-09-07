@@ -8,23 +8,26 @@ export const Solutions = () => {
   const { t } = useI18n();
   const items = (t("solutions.items") as unknown as { t: string; d: string }[]) || [];
   return (
-    <section id="solutions" className="bg-muted/40 py-20 md:py-28">
-      <div className="container-wide">
+    <section id="solutions" className="relative overflow-hidden bg-muted/40 py-20 md:py-28">
+      <div className="container-wide relative">
         <SectionHeader title={t("solutions.title")} subtitle={t("solutions.subtitle")} />
-        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {items.map((it, i) => {
             const Icon = icons[i % icons.length];
             return (
               <article
                 key={it.t}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-background p-7 transition-base hover:-translate-y-1 hover:shadow-elev-lg"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-border/80 bg-background p-7 text-left rtl:text-left transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-600/50 hover:shadow-2xl"
               >
-                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent/10 blur-2xl transition-base group-hover:bg-accent/20 rtl:-left-10 rtl:right-auto" aria-hidden />
-                <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-xl bg-navy text-primary-foreground">
-                  <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-                </span>
-                <h3 className="relative mt-5 text-lg font-bold text-primary">{it.t}</h3>
-                <p className="relative mt-2 text-sm leading-relaxed text-muted-foreground">{it.d}</p>
+                <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-600/10 blur-2xl transition-all group-hover:bg-blue-600/20" aria-hidden />
+                
+                <div className="text-left rtl:text-left">
+                  <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg transition-transform duration-300 group-hover:scale-110">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <h3 className="mt-6 text-xl font-extrabold text-primary text-left rtl:text-left">{it.t}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-left rtl:text-left">{it.d}</p>
+                </div>
               </article>
             );
           })}

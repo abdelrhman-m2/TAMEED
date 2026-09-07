@@ -98,9 +98,17 @@ const Pricing = () => {
 
             <aside className="flex flex-col justify-between rounded-2xl bg-navy p-7 text-primary-foreground">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{t("pricing.est")}</p>
-                <p className="mt-3 font-display text-5xl font-extrabold text-accent">{estimate}</p>
-                <p className="mt-1 text-sm opacity-80">/ {lang === "ar" ? "شهرياً" : "month"}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
+                  {lang === "ar" ? "نوع العرض" : "Offer Type"}
+                </p>
+                <p className="mt-3 font-display text-3xl font-extrabold text-accent">
+                  {lang === "ar" ? "عرض سعر مخصص" : "Custom Quote"}
+                </p>
+                <p className="mt-2 text-sm opacity-90 leading-relaxed">
+                  {lang === "ar"
+                    ? "بناءً على اختيارك لمجال النشاط، عدد المستخدمين، والوحدات المحددة."
+                    : "Based on your selected business type, user count, and modules."}
+                </p>
                 <p className="mt-6 text-xs leading-relaxed opacity-75">{t("pricing.note")}</p>
               </div>
               <Button asChild variant="hero" size="lg" className="mt-8">

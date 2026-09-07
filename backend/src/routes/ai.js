@@ -2,33 +2,9 @@ import express from "express";
 import { z } from "zod";
 import { supabase } from "../db.js";
 import { sendLeadEmail } from "../lib/mailer.js";
+import { SYSTEM_PROMPT } from "../lib/knowledgeBase.js";
 
 const router = express.Router();
-
-const SYSTEM_PROMPT = `
-You are the official TAMEED AI Sales Assistant.
-
-ONLY answer about TAMEED ERP systems and services.
-
-TAMEED provides ERP solutions including:
-- Inventory management
-- Sales management
-- Purchasing management
-- Human resources
-- Payroll
-- Business management
-
-Reply in the same language as the user.
-
-Keep answers concise and professional.
-
-If the user is interested in purchasing, demo, pricing, or contacting sales,
-ask for:
-- Name
-- Phone
-- Business type
-- Business need
-`;
 
 router.post("/", async (req, res) => {
   try {
@@ -48,17 +24,29 @@ router.post("/", async (req, res) => {
 
     const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
-    const contents = [];
-
-    // Previous conversation
-    for (const m of history) {
-      contents.push({
+    const rawList = (Array.isArray(history) ? history : [])
+      .filter((m) => (m.role === "user" || m.role === "assistant") && m.content && typeof m.content === "string" && m.content.trim())
+      .map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
-      });
+      }));
+
+    while (rawList.length > 0 && rawList[0].role !== "user") {
+      rawList.shift();
     }
 
-    // Current message
+    const contents = [];
+    for (const item of rawList) {
+      const last = contents[contents.length - 1];
+      if (!last || last.role !== item.role) {
+        contents.push(item);
+      }
+    }
+
+    if (contents.length > 0 && contents[contents.length - 1].role === "user") {
+      contents.pop();
+    }
+
     contents.push({
       role: "user",
       parts: [{ text: message }],

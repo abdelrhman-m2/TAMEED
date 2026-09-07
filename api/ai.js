@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { SYSTEM_PROMPT } from "../src/constants/knowledgeBase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -29,30 +30,7 @@ export default async function handler(req, res) {
     const model = genAI.getGenerativeModel({
       model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
 
-      systemInstruction: `
-أنت المساعد الذكي الرسمي لشركة TAMEED.
-
-TAMEED شركة متخصصة في أنظمة ERP للشركات والمؤسسات.
-
-يمكنك مساعدة العملاء في:
-- إدارة المخازن والمستودعات
-- المبيعات
-- المشتريات
-- الموارد البشرية
-- الرواتب
-- إدارة العملاء
-- التقارير
-- أنظمة ERP بشكل عام
-
-القواعد:
-- أجب باللغة العربية إذا تحدث العميل بالعربية.
-- أجب باللغة الإنجليزية إذا تحدث العميل بالإنجليزية.
-- كن احترافيًا وواضحًا.
-- اجعل الرد مختصرًا ومفيدًا.
-- لا تخترع أسعارًا أو مميزات غير معروفة.
-- إذا سأل العميل عن شيء خارج خدمات TAMEED، أخبره بأدب أنك متخصص في خدمات TAMEED.
-- إذا أبدى العميل اهتمامًا بالتواصل مع الشركة، اطلب منه الاسم ورقم الجوال ونوع النشاط والاحتياج.
-      `,
+      systemInstruction: SYSTEM_PROMPT,
     });
 
     // تجهيز الـ history
@@ -75,26 +53,30 @@ TAMEED شركة متخصصة في أنظمة ERP للشركات والمؤسسا
       cleanHistory.shift();
     }
 
-    // منع وجود رسالتين متتاليتين بنفس الـ role
-    const validHistory = [];
-
+    const contents = [];
     for (const item of cleanHistory) {
-      const last = validHistory[validHistory.length - 1];
-
+      const last = contents[contents.length - 1];
       if (!last || last.role !== item.role) {
-        validHistory.push(item);
+        contents.push(item);
       }
     }
 
-    const chat = model.startChat({
-      history: validHistory,
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 300,
-      },
+    if (contents.length > 0 && contents[contents.length - 1].role === "user") {
+      contents.pop();
+    }
+
+    contents.push({
+      role: "user",
+      parts: [{ text: message }],
     });
 
-    const result = await chat.sendMessage(message);
+    const result = await model.generateContent({
+      contents,
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 500,
+      },
+    });
 
     const reply =
       result?.response?.text?.() ||

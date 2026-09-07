@@ -3,11 +3,12 @@ import { ArrowRight, ArrowLeft, ShieldCheck, Database, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/I18nProvider";
 import heroImg from "@/assets/hero-visual.jpg";
+import zatcaLogo from "@/assets/zatca-logo.png";
 
 const icons = [Database, Zap, ShieldCheck];
 
 export const Hero = () => {
-  const { t, dir } = useI18n();
+  const { t, dir, lang } = useI18n();
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
   const trust = (t("hero.trust") as unknown as string[]) || [];
   const kpi = t("heroKpi") as { revenue: string; revenueValue: string; orders: string; ordersValue: string; trend: string };
@@ -33,7 +34,7 @@ export const Hero = () => {
               <Link to="/contact?type=demo">{t("hero.cta1")} <Arrow className="h-4 w-4" /></Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link to="/simulation">{t("hero.cta2")}</Link>
+              <Link to="/systems">{t("nav.systems")}</Link>
             </Button>
           </div>
 
@@ -63,8 +64,22 @@ export const Hero = () => {
               className="h-auto w-full"
             />
           </div>
-          <FloatingKPI className="absolute -top-4 ltr:-right-4 rtl:-left-4" label={kpi.revenue} value={`SAR ${kpi.revenueValue}`} trend={kpi.trend} />
+          <FloatingKPI className="absolute -top-4 ltr:-right-4 rtl:-left-4" label={kpi.revenue} value={kpi.revenueValue} trend={kpi.trend} />
           <FloatingKPI className="absolute -bottom-4 ltr:-left-4 rtl:-right-4" label={kpi.orders} value={kpi.ordersValue} trend={kpi.trend} />
+          
+          {/* ZATCA Logo under hero image on bottom right */}
+          <div className="mt-4 flex items-center justify-end">
+            <div className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-background/95 px-5 py-3 shadow-elev-md backdrop-blur-md transition-base hover:border-accent">
+              <span className="text-xs md:text-sm font-bold text-muted-foreground">
+                {lang === "ar" ? "معتمد ومربوط مع" : "Certified & Integrated with"}
+              </span>
+              <img
+                src={zatcaLogo}
+                alt="هيئة الزكاة والضريبة والجمارك - ZATCA"
+                className="h-14 md:h-16 lg:h-20 w-auto object-contain transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </section>
